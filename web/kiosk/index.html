@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Vending Kiosk</title>
+  <link rel="stylesheet" href="css/kiosk.css">
+  <script>
+    // mock: false -> calls the Kiosk Agent that serves this page (apiBase /api on the same origin)
+    // mock: true  -> runs fully in the browser with demo data; also with ?mock=1 in the address
+    window.KIOSK_CONFIG = { mock: false, apiBase: '/api' };
+  </script>
+</head>
+<body>
+<div id="app">
+
+  <!-- 1. Choose product -->
+  <section class="screen" data-screen="home" id="screen-home">
+    <header class="home-header">
+      <h1 class="title">Pilih Produk</h1>
+      <!-- Camouflaged operator entry: hold 3 s to open the operator login -->
+      <button class="secret" id="secret" type="button" tabindex="-1" aria-hidden="true"></button>
+    </header>
+    <div class="product-grid" id="product-grid"></div>
+  </section>
+
+  <!-- 2. Product detail -->
+  <section class="screen" data-screen="detail" id="screen-detail">
+    <button class="btn-back" type="button" data-action="home" aria-label="Kembali">&#8249;</button>
+    <div class="detail">
+      <div class="detail-media"><img id="detail-img" alt=""></div>
+      <div class="detail-info">
+        <h2 class="detail-name" id="detail-name"></h2>
+        <p class="detail-desc" id="detail-desc"></p>
+        <p class="price-pill" id="detail-price"></p>
+        <div class="btn-row">
+          <button class="btn btn-danger" type="button" data-action="home">Batal</button>
+          <button class="btn btn-primary" type="button" id="btn-buy">Bayar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Payment (simulated QRIS) -->
+  <section class="screen" data-screen="payment" id="screen-payment">
+    <button class="btn-back" type="button" id="pay-back" aria-label="Batalkan pembayaran">&#8249;</button>
+    <div class="payment">
+      <div class="payment-qr">
+        <div class="qr-frame">
+          <div class="qr" id="qr"></div>
+          <span class="stamp">SIMULASI</span>
+        </div>
+      </div>
+      <div class="payment-info">
+        <h2 class="payment-title">Scan QRIS</h2>
+        <p class="payment-product" id="pay-product"></p>
+        <p class="payment-amount" id="pay-amount"></p>
+        <p class="payment-timer">Sisa waktu <b id="pay-timer">60</b> detik</p>
+        <button class="btn btn-primary btn-wide" type="button" id="btn-pay">Konfirmasi bayar</button>
+        <p class="payment-note">Mode simulasi: tidak ada uang yang ditarik.</p>
+      </div>
+    </div>
+    <div class="overlay" id="pay-overlay" hidden>
+      <div class="overlay-body" id="pay-overlay-body"></div>
+    </div>
+  </section>
+
+  <!-- 4. Operator login -->
+  <section class="screen" data-screen="login" id="screen-login">
+    <button class="btn-back" type="button" data-action="home" aria-label="Kembali">&#8249;</button>
+    <div class="login">
+      <form class="login-panel" id="login-form" autocomplete="off">
+        <h2 class="panel-title">Login Operator</h2>
+        <label class="field-label" for="login-user">Username</label>
+        <input class="field" id="login-user" type="text" readonly inputmode="none" maxlength="32" data-field>
+        <label class="field-label" for="login-pass">Password</label>
+        <input class="field" id="login-pass" type="password" readonly inputmode="none" maxlength="32" data-field>
+        <p class="form-error" id="login-error" role="alert"></p>
+        <button class="btn btn-primary btn-wide" type="submit" id="btn-login">Log in</button>
+      </form>
+      <div class="keyboard" id="keyboard"></div>
+    </div>
+  </section>
+
+  <!-- 5. Restock -->
+  <section class="screen" data-screen="restock" id="screen-restock">
+    <header class="op-header">
+      <div>
+        <h2 class="op-title">Restock <span id="restock-machine"></span></h2>
+        <p class="op-sub" id="restock-operator"></p>
+      </div>
+      <button class="btn btn-dark btn-sm" type="button" id="btn-logout">Keluar</button>
+    </header>
+    <div class="slot-grid" id="slot-grid"></div>
+    <footer class="op-footer">
+      <button class="btn btn-primary btn-wide" type="button" id="btn-restock-save">Simpan</button>
+    </footer>
+  </section>
+
+  <!-- 6. Restock confirmation -->
+  <section class="screen" data-screen="restock-confirm" id="screen-restock-confirm">
+    <header class="op-header">
+      <div>
+        <h2 class="op-title">Konfirmasi restock</h2>
+        <p class="op-sub" id="confirm-summary"></p>
+      </div>
+    </header>
+    <div class="confirm-list" id="confirm-list"></div>
+    <p class="form-error confirm-error" id="confirm-error" role="alert"></p>
+    <footer class="op-footer btn-row">
+      <button class="btn btn-dark" type="button" id="btn-confirm-back">Ubah lagi</button>
+      <button class="btn btn-primary" type="button" id="btn-confirm-commit">Konfirmasi</button>
+    </footer>
+  </section>
+
+  <!-- Global layers -->
+  <div class="overlay" id="busy" hidden>
+    <div class="overlay-body"><div class="spinner"></div><p class="overlay-text" id="busy-text">Memproses…</p></div>
+  </div>
+  <div class="overlay overlay-offline" id="offline" hidden>
+    <div class="overlay-body">
+      <div class="icon-circle icon-warn">!</div>
+      <p class="overlay-title">Mesin offline</p>
+      <p class="overlay-text">Pembelian sementara tidak tersedia.<br>Mencoba menyambung kembali…</p>
+      <p class="overlay-text offline-detail" id="offline-detail" hidden></p>
+    </div>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

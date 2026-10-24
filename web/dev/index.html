@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiosk developer page</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #111315; --panel: #1b1e21; --line: #2c3136; --text: #e8eaed; --soft: #9aa3ab;
+      --ok: #3ccf7a; --bad: #ff6b5e; --warn: #f2b33d; --accent: #5aa9ff;
+      font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); }
+    header { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: baseline; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+    header h1 { font-size: 16px; margin: 0; }
+    header .soft { color: var(--soft); }
+    main { display: flex; gap: 18px; padding: 16px 18px; align-items: flex-start; }
+    .stage { flex: 0 0 auto; }
+    .stage-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+    .frame-box { position: relative; overflow: hidden; border: 8px solid #000; border-radius: 12px; background: #000; }
+    .frame-box iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: #000; }
+    aside { flex: 1 1 auto; min-width: 300px; display: grid; gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+    .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--soft); margin: 0 0 10px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    button, .btn { font: inherit; color: var(--text); background: #262a2f; border: 1px solid #3a4047; border-radius: 7px; padding: 6px 11px; cursor: pointer; text-decoration: none; }
+    button:hover, .btn:hover { border-color: #56606a; }
+    button.on { background: #17324d; border-color: var(--accent); }
+    button.danger.on, button.danger:hover { border-color: var(--bad); }
+    button:disabled { opacity: .5; cursor: default; }
+    .pill { display: inline-flex; gap: 6px; align-items: center; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); font-weight: 600; }
+    .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+    .soft { color: var(--soft); }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+    dt { color: var(--soft); } dd { margin: 0; overflow-wrap: anywhere; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--soft); font-weight: 500; font-size: 12px; }
+    td.num { text-align: right; }
+    code { font: 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .hint { color: var(--soft); margin: 8px 0 12px; font-size: 13px; }
+    .empty { color: var(--soft); }
+    @media (max-width: 900px) { main { flex-direction: column; } }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Kiosk developer page</h1>
+  <span id="machine" class="soft">loading…</span>
+  <span id="server-pill" class="pill soft">server</span>
+  <span id="version" class="soft"></span>
+</header>
+<main>
+  <section class="stage">
+    <div class="stage-bar">
+      <button type="button" id="portrait" class="on">Portrait 600 × 1024</button>
+      <button type="button" id="landscape">Landscape 1024 × 600</button>
+      <button type="button" id="reload">Reload kiosk</button>
+      <a class="btn" href="/" target="_blank" rel="noopener">Open kiosk alone</a>
+    </div>
+    <div class="frame-box" id="frame-box"><iframe id="kiosk" title="Kiosk" src="/"></iframe></div>
+  </section>
+
+  <aside>
+    <div class="card">
+      <h2>Motor board</h2>
+      <div id="board-sim" hidden>
+        <div class="row" id="sim-modes">
+          <button type="button" data-mode="ok">Dispense OK</button>
+          <button type="button" data-mode="jam">Jam: echo, no END (5 s)</button>
+          <button type="button" data-mode="no_ack">No echo (0.5 s)</button>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button type="button" class="danger" id="crash">Power cut on the next vend</button>
+          <span id="crash-state" class="soft"></span>
+        </div>
+        <p class="hint">Simulator (FR-29). A mode stays until you change it. The power cut stops the agent right after it sends the next vend command; start it again and that purchase is reported FAILED with AGENT_RESTART (TC-37).</p>
+      </div>
+      <dl id="board-info"></dl>
+    </div>
+
+    <div class="card">
+      <h2>Server</h2>
+      <dl id="server-info"></dl>
+    </div>
+
+    <div class="card">
+      <h2>Journal: purchases not yet confirmed by the server</h2>
+      <div id="journal"></div>
+    </div>
+
+    <div class="card">
+      <h2>Recent vends</h2>
+      <div id="recent"></div>
+    </div>
+
+    <div class="card">
+      <h2>Try it</h2>
+      <p class="hint" style="margin-top:0">Buy: tap a product, <b>Bayar</b>, then <b>Konfirmasi bayar</b>. Operator: hold the top-right corner of the kiosk for 3 s, then log in with an operator account (with the demo data: <code>budi</code> / <code>budi123</code>). The admin web shows every sale and visit as it happens.</p>
+    </div>
+  </aside>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var panel = { w: 600, h: 1024 };
+  try { if (localStorage.getItem('devOrientation') === 'landscape') panel = { w: 1024, h: 600 }; } catch (e) {}
+
+  function fit() {
+    var box = $('frame-box'), frame = $('kiosk');
+    var availH = window.innerHeight - box.getBoundingClientRect().top - 24;
+    var availW = window.innerWidth < 900 ? window.innerWidth - 52 : Math.max(320, window.innerWidth * 0.62 - 52);
+    var s = Math.min(1, availH / panel.h, availW / panel.w);
+    frame.style.width = panel.w + 'px';
+    frame.style.height = panel.h + 'px';
+    frame.style.transform = 'scale(' + s + ')';
+    box.style.width = Math.round(panel.w * s + 16) + 'px';
+    box.style.height = Math.round(panel.h * s + 16) + 'px';
+    $('portrait').classList.toggle('on', panel.w === 600);
+    $('landscape').classList.toggle('on', panel.w === 1024);
+  }
+  function orient(p) {
+    panel = p;
+    try { localStorage.setItem('devOrientation', p.w === 1024 ? 'landscape' : 'portrait'); } catch (e) {}
+    fit();
+  }
+  $('portrait').onclick = function () { orient({ w: 600, h: 1024 }); };
+  $('landscape').onclick = function () { orient({ w: 1024, h: 600 }); };
+  $('reload').onclick = function () { $('kiosk').contentWindow.location.reload(); };
+  window.addEventListener('resize', fit);
+  fit();
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function dl(target, rows) {
+    target.textContent = '';
+    rows.forEach(function (r) {
+      if (r[1] == null || r[1] === '') return;
+      target.appendChild(el('dt', '', r[0]));
+      var dd = el('dd');
+      if (r[1] instanceof Node) dd.appendChild(r[1]); else dd.textContent = r[1];
+      target.appendChild(dd);
+    });
+  }
+  function ago(ms) {
+    if (!ms) return '';
+    var s = Math.round((Date.now() - ms) / 1000);
+    if (s < 5) return 'just now';
+    if (s < 90) return s + ' s ago';
+    if (s < 5400) return Math.round(s / 60) + ' min ago';
+    return new Date(ms).toLocaleString();
+  }
+  function time(ms) { return ms ? new Date(ms).toLocaleTimeString() : ''; }
+  function short(id) { return String(id || '').replace(/-/g, '').slice(0, 8).toUpperCase(); }
+  function result(status, reason) {
+    var span = el('span', status === 'DISPENSED' ? 'ok' : status === 'FAILED' ? 'bad' : 'warn', status + (reason ? ' · ' + reason : ''));
+    return span;
+  }
+  function table(target, head, rows, empty) {
+    target.textContent = '';
+    if (!rows.length) { target.appendChild(el('p', 'empty', empty)); return; }
+    var t = el('table'), tr = el('tr');
+    head.forEach(function (h) { tr.appendChild(el('th', h.num ? 'num' : '', h.label)); });
+    t.appendChild(tr);
+    rows.forEach(function (cells) {
+      var r = el('tr');
+      cells.forEach(function (c, i) {
+        var td = el('td', head[i].num ? 'num' : '');
+        if (c instanceof Node) td.appendChild(c); else td.textContent = c == null ? '' : c;
+        r.appendChild(td);
+      });
+      t.appendChild(r);
+    });
+    target.appendChild(t);
+  }
+
+  var last = null;
+  function render(s) {
+    last = s;
+    var m = s.machine || {};
+    $('machine').textContent = m.code ? m.code + ' · ' + m.name : 'machine unknown until the server answers';
+    $('version').textContent = 'agent ' + s.version;
+    var pill = $('server-pill');
+    var srv = s.server || {};
+    pill.className = 'pill ' + (srv.online ? 'ok' : srv.problem ? 'bad' : 'warn');
+    pill.textContent = srv.online ? 'server online' : srv.problem ? 'server refuses this machine' : 'server offline';
+
+    var b = s.board || {};
+    $('board-sim').hidden = b.kind !== 'sim';
+    if (b.kind === 'sim') {
+      Array.prototype.forEach.call(document.querySelectorAll('#sim-modes button'), function (btn) {
+        btn.classList.toggle('on', btn.dataset.mode === b.simMode);
+      });
+      $('crash').classList.toggle('on', !!b.crashArmed);
+      $('crash-state').textContent = b.crashArmed ? 'armed: the next purchase stops the agent' : '';
+    }
+    dl($('board-info'), [['board', b.name], ['slot map', b.slotMap]]);
+
+    var admin = el('a', '', srv.url + '/');
+    admin.href = srv.url + '/';
+    admin.target = '_blank';
+    admin.rel = 'noopener';
+    admin.style.color = 'var(--accent)';
+    dl($('server-info'), [
+      ['admin web', admin],
+      ['status', srv.online ? 'online' : srv.problem ? srv.problem + ': ' + srv.message : 'offline'],
+      ['last contact', ago(srv.lastContactAt)],
+      ['last error', srv.online ? '' : srv.lastError],
+      ['catalog version', s.catalogVersion ? String(s.catalogVersion) : ''],
+      ['config', s.configFile],
+      ['data', s.dataDir]
+    ]);
+
+    table($('journal'), [{ label: 'transaction' }, { label: 'slot', num: true }, { label: 'stage' }, { label: 'result' }, { label: 'tries', num: true }, { label: 'last error' }],
+      (s.journal || []).map(function (e) {
+        return [el('code', '', short(e.txId)), e.slot || '?', e.stage, e.status ? result(e.status, e.failureReason) : '', e.attempts || '', e.lastError || ''];
+      }), 'Empty: the server has every result.');
+
+    table($('recent'), [{ label: 'time' }, { label: 'transaction' }, { label: 'slot', num: true }, { label: 'code' }, { label: 'result' }, { label: 'echo ms', num: true }, { label: 'END ms', num: true }],
+      (s.recent || []).map(function (v) {
+        return [time(v.at), el('code', '', short(v.txId)), v.slot, v.code || '', result(v.status, v.failureReason), v.ackMs || '', v.endMs || ''];
+      }), 'No vend since the agent started.');
+  }
+
+  function poll() {
+    fetch('/api/agent/status', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(render)
+      .catch(function () {
+        $('server-pill').className = 'pill bad';
+        $('server-pill').textContent = 'agent not running';
+      });
+  }
+  function setSim(mode) {
+    fetch('/api/agent/sim', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: mode }) })
+      .then(function (r) { return r.json(); }).then(poll);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#sim-modes button'), function (btn) {
+    btn.onclick = function () { setSim(btn.dataset.mode); };
+  });
+  $('crash').onclick = function () { setSim(last && last.board && last.board.crashArmed ? (last.board.simMode || 'ok') : 'crash'); };
+
+  poll();
+  setInterval(poll, 1500);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "serverUrl": "https://35.219.98.32",
+  "machineKey": "PASTE-THE-MACHINE-KEY-HERE",
+  "listen": "127.0.0.1:8080",
+  "board": "serial",
+  "serialPort": "",
+  "slotMap": { "1": "AA", "2": "BA", "3": "AB", "4": "BB", "5": "AC", "6": "BC" }
+}

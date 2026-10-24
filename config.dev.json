@@ -1,0 +1,8 @@
+{
+  "serverUrl": "http://localhost:8080",
+  "machineKey": "PASTE-THE-MACHINE-KEY-HERE",
+  "listen": "127.0.0.1:8090",
+  "board": "sim",
+  "simMode": "ok",
+  "simTurnMs": 2500
+}
