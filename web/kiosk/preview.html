@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kiosk preview</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; padding: 20px; background: #161616; color: #eee; font: 15px/1.4 "Segoe UI", system-ui, sans-serif; }
+    header { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; margin-bottom: 18px; }
+    h1 { font-size: 18px; margin: 0; }
+    label { display: flex; gap: 8px; align-items: center; }
+    select, button { font: inherit; padding: 6px 10px; border-radius: 6px; border: 1px solid #555; background: #262626; color: #eee; }
+    .frames { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+    figure { margin: 0; }
+    figcaption { margin-bottom: 8px; color: #aaa; }
+    iframe { display: block; border: 10px solid #000; border-radius: 14px; background: #000; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Kiosk preview · 1024 × 600 panel · demo data in the browser (no agent, no server)</h1>
+    <label>Simulator
+      <select id="sim">
+        <option value="ok">Dispense OK</option>
+        <option value="error">Dispense error</option>
+        <option value="offline">Server offline</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="debug"> Show hidden operator square</label>
+    <button id="reload" type="button">Reload</button>
+    <span>Operator login: <b>operator</b> / <b>123456</b> · hold the top-right corner 3 s</span>
+  </header>
+  <div class="frames">
+    <figure><figcaption>Portrait mount (600 × 1024)</figcaption><iframe id="f-portrait" width="600" height="1024"></iframe></figure>
+    <figure><figcaption>Landscape mount (1024 × 600)</figcaption><iframe id="f-landscape" width="1024" height="600"></iframe></figure>
+  </div>
+  <script>
+    function load() {
+      var q = '?mock=1&sim=' + document.getElementById('sim').value + (document.getElementById('debug').checked ? '&debug' : '');
+      document.getElementById('f-portrait').src = 'index.html' + q;
+      document.getElementById('f-landscape').src = 'index.html' + q;
+    }
+    ['sim', 'debug'].forEach(function (id) { document.getElementById(id).addEventListener('change', load); });
+    document.getElementById('reload').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>
